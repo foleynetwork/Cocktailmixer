@@ -1,5 +1,23 @@
 import sqlite3
 
+def CreateScript():
+    conn = sqlite3.connect('Cocktailmixer.db')
+    c = conn.cursor()
+    c.execute('''SELECT * FROM Zutaten''')
+    print "zutaten = " + cstr(c.fetchall()) + "\n"
+    print """c.executemany('INSERT INTO Zutaten VALUES(?,?,?,?,?,?,?)',zutaten)\n"""
+    c.execute('''SELECT * FROM Cocktail''')
+    print "cocktails = " + cstr(c.fetchall()) + "\n"
+    print """c.executemany('INSERT INTO Cocktail VALUES(?,?)',cocktails)\n"""
+    c.execute('''SELECT * FROM Rezept''')
+    print "Rezept = " + cstr(c.fetchall()) + "\n"
+    print """c.executemany('INSERT INTO Rezept VALUES(?,?,?)',rezepte)\n"""
+    c.execute('''SELECT * FROM GPIOPIN''')
+    print "gpiopins = " + cstr(c.fetchall()) + "\n"
+    print """c.executemany('INSERT INTO GPIOPIN VALUES(?,?)',gpiopins)\n"""
+    print c.fetchall()
+    conn.close()
+    
 def DBScript():
     conn = sqlite3.connect('Cocktailmixer.db')
     c = conn.cursor()
@@ -10,7 +28,7 @@ def DBScript():
     c.execute('''CREATE TABLE Rezept
     (CocktailID integer,ZutatID integer,Fuellmenge integer)''')
     c.execute('''CREATE TABLE GPIOPIN
-    (Pinnummer integer,ZutatID integer,CocktailID integer,OtherID integer)''')
+    (Pinnummer integer,ZutatID integer)''')
 
     zutaten = [(1,"Orangensaft",1,1,0.0,50,500),
                (2,"Limettensaft",1,2,0.0,51,501),
@@ -24,14 +42,11 @@ def DBScript():
                  ]
     c.executemany('INSERT INTO Cocktail VALUES(?,?)',cocktails)
 
-    gpiopins = [(1,1,-1,-1), #Zutaten
-                (2,2,-1,-1),
-                (3,3,-1,-1),
-                (4,-1,1,-1), #Cocktail
-                (5,-1,2,-1),
-                (6,-1,3,-1)
+    gpiopins = [(1,1), #Zutaten
+                (2,2),
+                (3,3)
                 ]
-    c.executemany('INSERT INTO GPIOPIN VALUES(?,?,?,?)',gpiopins)
+    c.executemany('INSERT INTO GPIOPIN VALUES(?,?)',gpiopins)
 
     rezepte = [(1,3,121), #Vodka-O
                (1,1,283),
@@ -67,11 +82,6 @@ class DBHandler():
         c = self._conn.cursor()
         c.execute('''SELECT * FROM Cocktail''')
         return c.fetchall()
-
-    def GetPINByCocktailID(self,CocktailID):
-        c = self._conn.cursor()
-        c.execute('''SELECT Pinnummer FROM GPIOPIN Where CocktailID = ?''',(CocktailID,))
-        return c.fetchone()[0]
 
     def GetPINByZutatID(self,ZutatID):
         c = self._conn.cursor()
