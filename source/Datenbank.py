@@ -4,18 +4,17 @@ def CreateScript():
     conn = sqlite3.connect('Cocktailmixer.db')
     c = conn.cursor()
     c.execute('''SELECT * FROM Zutaten''')
-    print "zutaten = " + cstr(c.fetchall()) + "\n"
+    print "zutaten = " + str(c.fetchall()) + "\n"
     print """c.executemany('INSERT INTO Zutaten VALUES(?,?,?,?,?,?,?)',zutaten)\n"""
     c.execute('''SELECT * FROM Cocktail''')
-    print "cocktails = " + cstr(c.fetchall()) + "\n"
+    print "cocktails = " + str(c.fetchall()) + "\n"
     print """c.executemany('INSERT INTO Cocktail VALUES(?,?)',cocktails)\n"""
     c.execute('''SELECT * FROM Rezept''')
-    print "Rezept = " + cstr(c.fetchall()) + "\n"
+    print "Rezept = " + str(c.fetchall()) + "\n"
     print """c.executemany('INSERT INTO Rezept VALUES(?,?,?)',rezepte)\n"""
     c.execute('''SELECT * FROM GPIOPIN''')
-    print "gpiopins = " + cstr(c.fetchall()) + "\n"
+    print "gpiopins = " + str(c.fetchall()) + "\n"
     print """c.executemany('INSERT INTO GPIOPIN VALUES(?,?)',gpiopins)\n"""
-    print c.fetchall()
     conn.close()
     
 def DBScript():
@@ -32,7 +31,7 @@ def DBScript():
 
     zutaten = [(1,"Orangensaft",1,1,0.0,50,500),
                (2,"Limettensaft",1,2,0.0,51,501),
-               (3,"Vodka",1,3,0.0,52,302)
+               (3,"Vodka",1,3,40.0,52,302)
                ]
     c.executemany('INSERT INTO Zutaten VALUES(?,?,?,?,?,?,?)',zutaten)
 
