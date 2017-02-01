@@ -3,57 +3,21 @@ import Datenbank
 import thread
 #from enum import Enum
 
-ButtonLock = thread.allocate_lock()
-SimLock = thread.allocate_lock()
-ButtonAuswahl = None
-SimPress = [False,False,False,False,False,False,False]
-
-def SimButton(Button):
-    SimPress[Button] = True
 
 #class OtherPin(Enum):
     #BECHER200ML = 1
 
 class GPIOPin:
-    def __init__(self,Pinnummer,Name,Input,MeinCocktail = None,Other = None):
+    def __init__(self,Pinnummer,Name):
         self._Pinnummer = Pinnummer
         self._Name = Name
-        self._Input = Input
-        #self.Listen(self._Pinnummer,self._Name,
-                                #self._Input,MeinCocktail,Other)
-        if MeinCocktail is not None:
-            thread.start_new_thread(self.Listen,(self._Pinnummer,self._Name,
-                                self._Input,MeinCocktail,Other))
-        
+                
     def SignalOn(self):
         print("Oeffne " + self._Name + ": GPIO PIN " + str(self._Pinnummer) + " Set to HIGH")
 
     def SignalOff(self):
         print("Schliesse " + self._Name + ": GPIO PIN " + str(self._Pinnummer) + " Set to Low")
-
-    def Listen(self,Pinnummer,Name,Input,MeinCocktail,Other):
-        global ButtonLock
-        while(True):
-            if self.CheckButtonPress(Pinnummer) == True:
-                SimPress[Pinnummer] = False #Simuliert
-                self.DoJob(ButtonLock,MeinCocktail,Other)
-            time.sleep(0.010)
-
-    def CheckButtonPress(self,Pinnummer):
-        global SimPress,SimLock
-        SimLock.acquire()
-        rtn = SimPress[Pinnummer] #Simuliert
-        SimLock.release()
-        return rtn
-
-    def DoJob(self,lock,MeinCocktail,Other):
-        global ButtonAuswahl
-        if Other is None and ButtonAuswahl == None:
-            lock.acquire()
-            ButtonAuswahl = MeinCocktail
-            lock.release()
             
-
 class Zutat:
     
     def __init__(self,ZutatID,Name,Ventilgruppe,Ventilnummer,Alkohol,Min1,T100M,GPIOPIN):
@@ -64,7 +28,7 @@ class Zutat:
         self.Alkohol = Alkohol
         self.Min1 = Min1
         self.T100M = T100M
-        self.GPIOPin = GPIOPin(GPIOPIN,Name,False)
+        self.GPIOPin = GPIOPin(GPIOPIN,Name)
 
 
 class ParameterZutat:
@@ -73,14 +37,14 @@ class ParameterZutat:
         self.Menge = Menge
 
 class Cocktail:
-    def __init__(self,CocktailID,Name,GPIOPIN):
+    def __init__(self,CocktailID,Name):
         self._ParameterZutaten = []
         self.Name = Name
         self.CocktailID = CocktailID
         self._StandardFuellmenge = -1
         self._JobList = None
-        self.GPIOPin = GPIOPin(GPIOPIN,Name,True,self)
-
+        self._NewCocktail = None
+        
     def PrintZutaten(self):
         for MeineParameterZutaten in self._ParameterZutaten:
             print MeineParameterZutaten.Zutat.Name
@@ -168,24 +132,9 @@ class CocktailMaschine:
         self._DBHandler1 = Datenbank.DBHandler('Cocktailmixer.db')
         self._AlleCocktails = []
         self.LoadAlleCocktails()
-        thread.start_new_thread(self.Listen,())
 
     def Close(self):
         self._DBHandler1.Close()
-
-    def Listen(self):
-        global ButtonLock
-        while(True):
-            ButtonLock.acquire()
-            self.CheckButtonPress()
-            ButtonLock.release()
-            time.sleep(0.010)
-
-    def CheckButtonPress(self):
-        global ButtonAuswahl
-        if ButtonAuswahl is not None:
-            ButtonAuswahl.Mixen()
-            ButtonAuswahl = None
 
     def LoadRezept(self,MeinCocktail):
         rezepte = self._DBHandler1.GetRezeptByCocktailID(MeinCocktail.CocktailID)
@@ -203,11 +152,9 @@ class CocktailMaschine:
         print "Lade alle Cocktails"
         Cocktails = self._DBHandler1.GetAllCocktails()
         for dbCocktail in Cocktails:
-            GPIOPIN = self._DBHandler1.GetPINByCocktailID(dbCocktail[0])
-            self._AlleCocktails.append(Cocktail(dbCocktail[0],dbCocktail[1],
-                                     GPIOPIN))
+            self._AlleCocktails.append(Cocktail(dbCocktail[0],dbCocktail[1]))
         for aCocktail in self._AlleCocktails:
-            print "[" + str(aCocktail.GPIOPin._Pinnummer) + "]" + aCocktail.Name
+            print aCocktail.Name
             self.LoadRezept(aCocktail)
 
 
