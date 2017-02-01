@@ -1,11 +1,6 @@
 import time
 import Datenbank
 import thread
-#from enum import Enum
-
-
-#class OtherPin(Enum):
-    #BECHER200ML = 1
 
 class GPIOPin:
     def __init__(self,Pinnummer,Name):
@@ -42,6 +37,10 @@ class Cocktail:
         self.Name = Name
         self.CocktailID = CocktailID
         self._StandardFuellmenge = -1
+        self._Alkoholmenge = -1
+        self._NichtAlkoholmenge = -1
+        self._Alkoholmengepur = -1
+        self._ProzentStaerke = -1
         self._JobList = None
         self._NewCocktail = None
         
@@ -56,11 +55,45 @@ class Cocktail:
 
     def CalcStandardFuellmenge(self):
         self._StandardFuellmenge = 0
+        self._Alkoholmenge = 0
+        self._Alkoholmengepur = 0
+        self._NichtAlkoholmenge = 0
         for ParameterZutat in self._ParameterZutaten:
             self._StandardFuellmenge += ParameterZutat.Menge
+            if ParameterZutat.Zutat.Alkohol > 0:
+                self._Alkoholmenge += ParameterZutat.Menge
+                self._Alkoholmengepur += ParameterZutat.Menge * (ParameterZutat.Zutat.Alkohol/100.0)
+        try:
+            self._ProzentStaerke = self._Alkoholmengepur / float(self._StandardFuellmenge)
+        except:
+            self._ProzentStaerke = 0
+        self._NichtAlkoholmenge = self._StandardFuellmenge - self._Alkoholmenge 
         return self._StandardFuellmenge
 
-    def Mixen(self):
+    def _GetAlkoholFaktoren(self,Staerke,Fuellmenge):
+        FaktorFuellmenge = float(Fuellmenge) / self._StandardFuellmenge
+        newNichtAlkoholmenge = self._StandardFuellmenge - (self._Alkoholmenge * Staerke)
+        FaktorAlkoholmenge = Staerke
+        FaktorNichtAlkoholmenge = float(newNichtAlkoholmenge) / self._NichtAlkoholmenge
+        FaktorAlkoholmenge *= FaktorFuellmenge
+        FaktorNichtAlkoholmenge *= FaktorFuellmenge
+        return FaktorAlkoholmenge,FaktorNichtAlkoholmenge
+        
+
+    def Mixen(self,Staerke,Fuellmenge): #Staerke in %/Fuellmenge in ml
+        FaktorAlkoholmenge,FaktorNichtAlkoholmenge = self._GetAlkoholFaktoren(Staerke,Fuellmenge)
+        self._NewCocktail = Cocktail(self.CocktailID,self.Name)
+        for xParameterZutat in self._ParameterZutaten:
+            newParameterZutat = ParameterZutat(xParameterZutat.Zutat,xParameterZutat.Menge)
+            if xParameterZutat.Zutat.Alkohol > 0:
+                newParameterZutat.Menge *= FaktorAlkoholmenge
+            else:
+                newParameterZutat.Menge *= FaktorNichtAlkoholmenge
+            self._NewCocktail.AddParameterZutat(newParameterZutat)
+        self._NewCocktail._RealMixen()
+        
+        
+    def _RealMixen(self):
         print "Cocktail wird gemixt: " + self.Name
         self._CreateJobList()
         self._JobList.DoJobs()
@@ -77,7 +110,7 @@ class Cocktail:
             else:
                 WarteZeit = (MeineMenge / 100.0) * MeineZutat.T100M
                 # Pro Sekunde / 1000
-            self._JobList.AddJobWarten(WarteZeit)
+            self._JobList.AddJobWarten(MeineZutat,WarteZeit)
             self._JobList.AddJobZutat(MeineZutat,False)
 
 class Job:
@@ -109,12 +142,38 @@ class JobList:
     def __init__(self):
         self._Jobs = []
 
+
+    def _ModifyJobToFast(self):
+        OpenJobs = []
+        CloseJobs = []
+        WarteJobs = []
+        for xJob in self._Jobs:
+            if xJob._Open:
+                OpenJobs.append(xJob)
+            else:
+                if xJob._WarteZeit > - 1:
+                    WarteJobs.append(xJob)                    
+        WarteJobs = sorted(WarteJobs, key=lambda Job: Job._WarteZeit)
+        tmp = 0
+        for xJob in WarteJobs:
+            newJob = Job(xJob._Zutat,-1,False)
+            CloseJobs.append(newJob)
+            xJob._WarteZeit -= tmp
+            tmp += xJob._WarteZeit
+        self._Jobs = []
+        for xJob in OpenJobs:
+            self._Jobs.append(xJob)
+        for i in range(0,len(WarteJobs)):
+            self._Jobs.append(WarteJobs[i])
+            self._Jobs.append(CloseJobs[i])
+        
+
     def AddJobZutat(self,Zutat,Open):
         NewJob = Job(Zutat,-1,Open)
         self._Jobs.append(NewJob)
 
-    def AddJobWarten(self,Wartezeit):
-        NewJob = Job(-1,Wartezeit,False)
+    def AddJobWarten(self,Zutat,Wartezeit):
+        NewJob = Job(Zutat,Wartezeit,False)
         self._Jobs.append(NewJob)
         
     def CalcKompletteZeit(self):
@@ -123,9 +182,14 @@ class JobList:
             if Job.GetWarteZeit() > 0:
                 Zeit += Job.GetWarteZeit()
 
+    def Abort(self):
+        return False
+
     def DoJobs(self):
+        #self._ModifyJobToFast()
         for Job in self._Jobs:
-            Job.DoJob()
+            if not self.Abort():
+                Job.DoJob()
 
 class CocktailMaschine:
     def __init__(self):
@@ -160,8 +224,8 @@ class CocktailMaschine:
 
 
 CocktailMaschine1 = CocktailMaschine()
-MeinCocktail = CocktailMaschine1._AlleCocktails[0]
-#MeinCocktail.Mixen()
+MeinCocktail = CocktailMaschine1._AlleCocktails[1]
+MeinCocktail.Mixen(1.12,600)
 
 
 
